@@ -50,7 +50,7 @@ func responseImage(w http.ResponseWriter, img image.Image, webp bool) {
 func getWebpSupport(r *http.Request) bool {
 	webp := false
 
-	log.Printf("Header: %+v", r.Header["Accept"])
+	// log.Printf("Header: %+v", r.Header["Accept"])
 	for _, accepts := range r.Header["Accept"] {
 		if strings.Contains(accepts, "image/webp") {
 			webp = true
@@ -79,7 +79,7 @@ func grayImage(w http.ResponseWriter, r *http.Request) {
 	responseImage(w, grayCalculation(img), getWebpSupport(r))
 }
 
-func convertImage(w http.ResponseWriter, r *http.Request) {
+func invertImage(w http.ResponseWriter, r *http.Request) {
 	urlString := r.FormValue("url")
 	// log.Printf("convert Image URL: %s", urlString)
 
@@ -99,6 +99,31 @@ func grayCalculation(i image.Image) image.Image {
 
 func resizeCalculation(i image.Image, width int, height int) image.Image {
 	return imaging.Resize(i, width, height, imaging.Box)
+}
+
+func blurCalculation(i image.Image, blur float64) image.Image {
+	return imaging.Blur(i, blur)
+}
+
+func blurImage(w http.ResponseWriter, r *http.Request) {
+	urlString := r.FormValue("url")
+	blurString := r.FormValue("blur")
+
+	blurInt, err := strconv.Atoi(blurString)
+	// log.Printf("Width: %s %d", widthString, width)
+	if err != nil {
+		blurInt = 100
+	}
+	blur := float64(blurInt) / 100
+
+	img, err := getImage(urlString)
+	if err != nil {
+		//	log.Printf("Error getImage(): %s", err)
+		responseError(err, w)
+		return
+	}
+
+	responseImage(w, blurCalculation(img, blur), getWebpSupport(r))
 }
 
 func resizeImage(w http.ResponseWriter, r *http.Request) {
@@ -132,7 +157,8 @@ func router() *mux.Router {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/gray", grayImage).Methods("GET")
-	r.HandleFunc("/invert", convertImage).Methods("GET")
+	r.HandleFunc("/invert", invertImage).Methods("GET")
+	r.HandleFunc("/blur", blurImage).Methods("GET")
 	r.HandleFunc("/resize", resizeImage).Methods("GET")
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("OK"))
